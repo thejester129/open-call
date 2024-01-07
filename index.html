@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <title>Audio Fun</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="stylesheet.css" />
+    <script src="main.js"></script>
+  </head>
+
+  <body>
+    <canvas id="canvas"></canvas>
+    <button id="play">play</button>
+    <button id="stop">stop</button>
+    <audio id="audio">
+      <source src="./tunes/follies.mp3" type="audio/mpeg" />
+    </audio>
+
+    <script>
+      window.onload = () => startup();
+    </script>
+  </body>
+</html>
