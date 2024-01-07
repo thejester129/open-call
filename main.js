@@ -18,15 +18,29 @@ let playButton, stopButton, audioElem;
 let spectrumData;
 let intervalId;
 let songSrc;
+let song1Btn, song2Btn, song3Btn, song4Btn, song5Btn, song6Btn, song7Btn;
 
 function startup() {
   // dom parsing
-  playButton = document.getElementById("play");
+  song1Btn = document.getElementById("song1");
+  song2Btn = document.getElementById("song2");
+  song3Btn = document.getElementById("song3");
+  song4Btn = document.getElementById("song4");
+  song5Btn = document.getElementById("song5");
+  song6Btn = document.getElementById("song6");
+  song7Btn = document.getElementById("song7");
   stopButton = document.getElementById("stop");
   audioElem = document.getElementById("audio");
 
   // event handling
-  playButton.onclick = playAudio;
+  song1Btn.onclick = () => handlePlaySong("./tunes/yours.mp3");
+  song2Btn.onclick = () => handlePlaySong("./tunes/follies.mp3");
+  song3Btn.onclick = () => handlePlaySong("./tunes/idontknow.mp3");
+  song4Btn.onclick = () => handlePlaySong("./tunes/everlong.mp3");
+  song5Btn.onclick = () => handlePlaySong("./tunes/phychic.mp3");
+  song6Btn.onclick = () => handlePlaySong("./tunes/triangle.mp3");
+  song7Btn.onclick = () => handlePlaySong("./tunes/autonomous.mp3");
+
   stopButton.onclick = stopAudio;
 
   // canvas
@@ -34,23 +48,23 @@ function startup() {
   canvas.width = VIEW_WIDTH;
   canvas.height = VIEW_HEIGHT;
   canvasCtx = canvas.getContext("2d");
+}
 
-  songSrc = "./tunes/follies.mp3";
-
-  loadAudio(songSrc);
+function handlePlaySong(url) {
+  stopAudio();
+  loadAudio(url).then(() => playAudio(url));
 }
 
 function loadAudio(url) {
-  audioElem.src = url;
   audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  fetch(url)
+  return fetch(url)
     .then((response) => response.arrayBuffer())
     .then((arrayBuffer) => audioCtx.decodeAudioData(arrayBuffer))
     .then(getAudioData);
 }
 
-async function playAudio() {
-  // audio
+async function playAudio(url) {
+  audioElem.src = url;
   audioElem.play();
   //   audioElem.muted = true;
 
@@ -92,6 +106,7 @@ function renderFrame(frame, frameIndex) {
   // up to about 20khz or so
   let croppedFrequencies = frame.slice(0, FREQS_PER_FRAME);
   for (const frequency of croppedFrequencies) {
+    drawTriangleProgress(frameIndex);
     drawFrequency(frequency, i, frameIndex);
     drawBeatCircle(frameIndex);
     drawProgress(frameIndex);
@@ -124,10 +139,10 @@ function drawFrequencyCurrent(db, freqIndex, frameIndex) {
   );
 }
 
-function drawFrequencySoFar(freqIndex, frameIndex, canReset = false) {
+function drawFrequencySoFar(freqIndex, frameIndex, second = false) {
   let lineLength = getTotalDbForFrequencySoFar(freqIndex, frameIndex);
   const max = VIEW_WIDTH * 2 + VIEW_WIDTH;
-  while (lineLength > max && canReset) {
+  while (lineLength > max && second) {
     // reset colors
     lineLength = lineLength - max;
   }
@@ -172,18 +187,26 @@ function drawFrequencySoFar(freqIndex, frameIndex, canReset = false) {
     );
   }
 
-  if (!canReset) {
+  if (!second) {
     drawFrequencySoFar(freqIndex, frameIndex, true); // overlay second
   }
 }
 
-function drawMemoryLine(freqIndex, frameIndex, length, color) {
+function drawMemoryLine(
+  freqIndex,
+  frameIndex,
+  length,
+  color,
+  spinBackground = false
+) {
   const from = [VIEW_WIDTH / 2, VIEW_HEIGHT / 2];
+
   let frameDegOffset = (frameIndex + 360) % 360;
 
-  if (!SPIN_BACKGROUND) {
+  if (!spinBackground) {
     frameDegOffset = 0;
   }
+  frameDegOffset += 5;
 
   const angleRad = getAngleRadsForFrequency(freqIndex, frameDegOffset);
 
@@ -226,6 +249,26 @@ function drawProgress(frameIndex) {
   const fromRight = [VIEW_WIDTH, 0];
   const toRight = [VIEW_WIDTH, progressHeight];
   drawLine(fromRight, toRight, color, width);
+}
+
+function drawTriangleProgress(frameIndex) {
+  const maxPercent = 0.1;
+  const progress = Math.min(frameIndex / spectrumData.length, maxPercent);
+  const progressLength = progress * VIEW_WIDTH;
+
+  // upper
+  const point1Upper = [0, 0];
+  const point2Upper = [0, progressLength];
+  const point3Upper = [progressLength, 0];
+
+  drawTriangle(point1Upper, point2Upper, point3Upper);
+
+  // lower
+  const point1Lower = [VIEW_WIDTH, VIEW_HEIGHT];
+  const point2Lower = [VIEW_WIDTH, VIEW_HEIGHT - progressLength];
+  const point3Lower = [VIEW_WIDTH - progressLength, VIEW_HEIGHT];
+
+  drawTriangle(point1Lower, point2Lower, point3Lower);
 }
 
 function getAngleRadsForFrequency(freqIndex, offset) {
@@ -282,6 +325,16 @@ function drawLine(from, to, color, width = 1) {
   canvasCtx.moveTo(from[0], from[1]);
   canvasCtx.lineTo(to[0], to[1]);
   canvasCtx.stroke();
+}
+
+function drawTriangle(point1, point2, point3, color, width = 1) {
+  canvasCtx.fillStyle = "rgba(100, 100, 100, 1)";
+  canvasCtx.lineWidth = width;
+  canvasCtx.beginPath();
+  canvasCtx.moveTo(point1[0], point1[1]);
+  canvasCtx.lineTo(point2[0], point2[1]);
+  canvasCtx.lineTo(point3[0], point3[1]);
+  canvasCtx.fill();
 }
 
 function drawCircle(radius, color) {
