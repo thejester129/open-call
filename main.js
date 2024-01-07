@@ -1,13 +1,15 @@
 const FPS = 24;
 const FFT_SIZE = 512;
-const VIEW_HEIGHT = 500;
-const VIEW_WIDTH = 500;
+const VIEW_HEIGHT = 1000;
+const VIEW_WIDTH = 1000;
+const FREQS_PER_FRAME = 150; // cut off upper range frequencies, 255 max
 
 let audioCtx, audioOff, analyser, canvas, canvasCtx;
 let sampleRate;
 let playButton, stopButton, audioElem;
 let spectrumData;
 let intervalId;
+let songSrc;
 
 function startup() {
   // dom parsing
@@ -25,10 +27,13 @@ function startup() {
   canvas.height = VIEW_HEIGHT;
   canvasCtx = canvas.getContext("2d");
 
-  loadAudio("./tunes/follies.mp3");
+  songSrc = "./tunes/follies.mp3";
+
+  loadAudio(songSrc);
 }
 
 function loadAudio(url) {
+  audioElem.src = url;
   audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   fetch(url)
     .then((response) => response.arrayBuffer())
@@ -39,10 +44,10 @@ function loadAudio(url) {
 async function playAudio() {
   // audio
   audioElem.play();
+  //   audioElem.muted = true;
 
-  audioElem.addEventListener("play", () => {
-    renderAudioVisuals();
-  });
+  audioElem.addEventListener("play", renderAudioVisuals);
+  audioElem.addEventListener("ended", stopAudio);
 }
 
 function renderAudioVisuals() {
@@ -54,20 +59,17 @@ function renderAudioVisuals() {
   let i = 0;
   intervalId = setInterval(() => {
     const frame = spectrumData[i];
-    renderFrame(frame);
-    i++;
+    if (frame) {
+      renderFrame(frame, i);
+      i++;
+    }
   }, RENDER_RATE);
-
-  // TODO clear when done
 }
 
 async function stopAudio() {
   clearInterval(intervalId);
-
   // audio
   audioElem.load();
-  //   audioElem.pause();
-  // render
   clearCanvas();
 }
 
@@ -114,7 +116,7 @@ async function getAudioData(audioBuffer) {
     audioOff
       .startRendering()
       .then(() => {
-        console.log("[✔] Audio-Spectrum Decoded!");
+        console.log("Audio-Spectrum Decoded!");
         spectrumData = __data;
         return resolve(__data);
       })
@@ -133,20 +135,93 @@ function clearCanvas() {
 // ...
 // 44khz
 
-function renderFrame(frame) {
+function renderFrame(frame, frameIndex) {
   clearCanvas();
   let i = 0;
-  for (const frequency of frame) {
-    drawFrequency(frequency, i);
+  // get rid of frequencies not in mix
+  // up to about 20khz or so
+  let croppedFrequencies = frame.slice(0, FREQS_PER_FRAME);
+  for (const frequency of croppedFrequencies) {
+    drawFrequency(frequency, i, frameIndex);
     i++;
   }
 }
 
-function drawFrequency(db, index) {
-  const x = (VIEW_WIDTH / 255) * index;
-  const height = db;
-  const width = VIEW_WIDTH / 255;
+function drawFrequency(db, index, frameIndex) {
+  drawFrequencyCurrent(db, index, frameIndex);
+  drawFrequencySoFar(index, frameIndex);
+}
 
-  canvasCtx.fillStyle = "black";
-  canvasCtx.fillRect(x, 20, width, height);
+function drawFrequencyCurrent(db, index, frameIndex) {
+  db = normaliseDbForRender(db);
+  const frameDegOffset = (frameIndex + 360) % 360;
+  const from = [VIEW_WIDTH / 2, VIEW_HEIGHT / 2];
+  const angleDeg = (index / FREQS_PER_FRAME) * 360 + frameDegOffset;
+  const angleRad = (angleDeg / 180) * Math.PI;
+
+  const basePosition = [from[0] + db, from[1]];
+  const rotatedPosition = rotate(basePosition, from, angleRad);
+
+  drawLine(from, rotatedPosition, "gray");
+}
+
+function drawFrequencySoFar(frequencyIndex, frameIndex) {
+  //   drawLine(from, rotatedPosition, getColorFromFrequency(frequencyIndex));
+}
+
+function normaliseDbForRender(db) {
+  if (db < 30) {
+    return db * 3;
+  }
+  if (db < 60) {
+    return db * 2;
+  }
+  if (db < 120) {
+    return db * 1.5;
+  }
+  return db;
+}
+
+// draw helpers
+
+function getColorFromFrequency(fIndex) {
+  const color = `rgb(${fIndex}, ${fIndex}, ${fIndex})`;
+  return color;
+}
+
+function getRandomColor() {
+  const color = `rgb(${Math.random() * 255}, ${Math.random() * 255}, ${
+    Math.random() * 255
+  })`;
+  return color;
+}
+
+function drawLine(from, to, color) {
+  canvasCtx.strokeStyle = color;
+  canvasCtx.beginPath();
+  canvasCtx.moveTo(from[0], from[1]);
+  canvasCtx.lineTo(to[0], to[1]);
+  canvasCtx.stroke();
+}
+
+// math helpers
+
+function rotate(position, center, angle) {
+  const at0 = subtract(position, center);
+  const rotatedAt0 = [
+    at0[0] * Math.cos(angle) - at0[1] * Math.sin(angle),
+    at0[1] * Math.cos(angle) + at0[0] * Math.sin(angle),
+  ];
+
+  const rotated = add(rotatedAt0, center);
+
+  return rotated;
+}
+
+function add(v1, v2) {
+  return [v1[0] + v2[0], v1[1] + v2[1]];
+}
+
+function subtract(v1, v2) {
+  return [v1[0] - v2[0], v1[1] - v2[1]];
 }
