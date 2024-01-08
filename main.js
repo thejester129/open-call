@@ -1,7 +1,7 @@
 const FPS = 24;
 const FFT_SIZE = 512;
-const VIEW_HEIGHT = 1000;
-const VIEW_WIDTH = 1000;
+const VIEW_HEIGHT = 700;
+const VIEW_WIDTH = 700;
 const FREQS_PER_FRAME = 150; // cut off upper range frequencies, 255 max
 
 // drawing consts
