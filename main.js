@@ -21,7 +21,7 @@ const fifthThresh = VIEW_WIDTH * 2 + VIEW_WIDTH;
 
 let audioCtx, audioOff, analyser, canvas, canvasCtx;
 let sampleRate;
-let playButton, pauseButton, stopButton, audioElem;
+let playButton, pauseButton, stopButton, audioElem, loadingElem;
 let spectrumData;
 let intervalId;
 let songSrc;
@@ -41,6 +41,8 @@ function startup() {
   pauseButton = document.getElementById("play");
   stopButton = document.getElementById("stop");
   audioElem = document.getElementById("audio");
+  loadingElem = document.getElementById("loading");
+  loadingElem.style.visibility = "hidden";
 
   // event handling
   song1Btn.onclick = () => handlePlaySong("./tunes/yours.mp3");
@@ -66,11 +68,15 @@ function handlePlaySong(url) {
 }
 
 function loadAudio(url) {
+  loadingElem.style.visibility = "visible";
   audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   return fetch(url)
     .then((response) => response.arrayBuffer())
     .then((arrayBuffer) => audioCtx.decodeAudioData(arrayBuffer))
-    .then(getAudioData);
+    .then(getAudioData)
+    .then(() => {
+      loadingElem.style.visibility = "hidden";
+    });
 }
 
 async function playAudio(url) {
